@@ -1,0 +1,55 @@
+domains
+intlist = integer*.
+sym=string*.
+struc=struc(string, integer).
+sl=struc*.
+
+predicates
+nondeterm p(sym, sl).
+nondeterm count(string, integer, sym).
+nondeterm fnd(string, sl).
+nondeterm delandreplace(string, sl, sl).
+
+clauses
+p([], []).	
+p([Hs|Ts], [H|T]):- 
+	p(Ts, StructList),
+	count(Hs, Qd, Ts),%char quantity list,
+	fnd(Hs, StructList),!,
+	delandreplace(Hs, StructList, Result),
+	NewQd=Qd+1,
+	H=struc(Hs, NewQd),
+	T=Result.
+p([Hs|Ts], [H|T]):- 
+	p(Ts, StructList),
+	count(Hs, Qd, Ts),
+	NewQd=Qd+1,
+	H=struc(Hs, NewQd),
+	T=StructList.
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+count(_,0, []).
+count(Char, Q, [H|T]):-
+	count(Char, Qd, T),
+	Char=H,
+	Q=Qd+1.
+count(Char, Q, [H|T]):-
+	count(Char, Qd, T),
+	Q=Qd,!.
+%%%%%%%%%%%%%%%%%
+fnd(_,[]):-fail.
+fnd(Char, [H|_]):-
+	H = struc(Char, _).
+fnd(Char, [_|T]):-
+	fnd(Char,T).
+%%%%%%
+delandreplace(_, [], []).
+delandreplace(Char, [H|T], Result):-
+	H=struc(Char,_),
+	delandreplace(Char, T, Result),!.
+	
+delandreplace(Char, [H|T], [H|Result]):-
+	delandreplace(Char, T, Result).
+
+goal
+p([a,s,v,d,s,s,a,v], Result).

@@ -1,0 +1,119 @@
+include "lab1.inc"
+
+%9 variant
+domains
+intlist = integer*.
+strlist=string*.
+strlistlist = strlist*.
+
+predicates
+nondeterm append(strlist, strlist, strlist).
+nondeterm edge(string, string).
+nondeterm del_double(strlist,strlistlist).
+nondeterm form_edge(strlist, strlist, strlistlist).
+nondeterm form_graph(strlistlist, strlistlist).
+nondeterm ost_tree(strlistlist).
+nondeterm member(string, strlist).
+nondeterm member_both(string, string, strlistlist).
+nondeterm member_list(string, strlistlist, strlist).
+nondeterm form_tree(strlistlist, strlistlist, strlistlist , strlistlist).
+nondeterm delete(strlist, strlistlist, strlistlist).
+nondeterm lists_equal(strlist, strlist).
+nondeterm program(integer, strlistlist).
+nondeterm len(strlist, integer).
+%test
+nondeterm traversal_tree(strlistlist,strlistlist,integer,strlistlist).
+nondeterm compute_current_depth(strlistlist, strlist, integer, strlistlist).
+nondeterm get_string_from_result(strlist, string).
+nondeterm max(integer, integer, integer).
+nondeterm find_parent(string,string).
+
+clauses
+edge(a, b).
+edge(b,t).
+edge(t,y).
+edge(y,n).
+edge(a, c).
+edge(a, d).
+edge(d, e).
+%%% form a tree
+ost_tree(T):-form_graph(V, A), form_tree(V, A, [], T).
+append([], L, L).
+append([X|T], Y, [X|ResultTail]) :- append(T, Y, ResultTail).
+
+del_double([X|T], Y):- member(X,T), !, del_double(T, Y).
+del_double([X|T], [[X]|Y]):- !, del_double(T, Y).
+del_double([],[]).
+
+delete(_, [], []).
+delete(L, [H|T], VT) :-
+	lists_equal(L, H), 
+	delete(L, T, VT),!.
+delete(L, [H|T], [H|VT]):-
+	delete(L, T, VT).
+
+lists_equal([], []).
+lists_equal([X|Xs], [X|Ys]) :- 
+    lists_equal(Xs, Ys).
+
+
+member(X, [_|T]):-member(X, T).
+member(X, [X|_]).
+
+member_list(X, [_|T], L):- member_list(X, T, L).
+member_list(X, [L|_], L):- member(X, L), !.
+
+member_both(X, Y, [L|_]):- member(X, L), member(Y, L),!.
+member_both(X, Y, [_|T]):- member_both(X, Y, T).
+
+form_edge([],[],[]).
+form_edge([X|XT], [Y|YT], [[X,Y]|L]):- form_edge(XT, YT, L).
+
+form_graph(V, A):- findall(X, edge(X,_), L1), findall(Y, edge(_,Y), L2), append(L1, L2, L), del_double(L, V), form_edge(L1, L2, A).
+
+form_tree (_, [ ], T, T).
+form_tree (V, [ [X, Y] | AT], TO, T) :-
+			 member_both (X, Y, V), !, form_tree (V, AT, TO, T).
+form_tree (V, [ [X, Y] | AT], TO, T) :-
+		               member_list (X, V, L1), member_list (Y, V, L2),
+		               append (L1, L2, L),
+		               delete (L1, V, V1),
+		               delete (L2, V1, V2),
+		               form_tree ([L | V2], AT, [ [X, Y] | TO], T).
+		               
+len([], 0).
+len([H|T], Result):-len(T, ResultS), Result=ResultS+1.
+
+program(Quantity, Branch):-ost_tree(T),edge(CurrentChar, _),!, traversal_tree(T, T, Quantity, Branch).
+%%%%%%%%%%%%find a number of longest tree
+traversal_tree(_, [], 1, []).
+traversal_tree(Tree,[[Node,Leaf|[]]|T], Max, [[Node, Leaf|[]]|Branch]):-
+	traversal_tree(Tree,T, Tmax, Tbranch),
+	compute_current_depth(Tree, [Node, Leaf], CurrentDepth, Branch),
+	Tmax<CurrentDepth,
+	Max=CurrentDepth,!.
+traversal_tree(Tree,[[Node,Leaf|[]]|T], Max, Tbranch):-
+	traversal_tree(Tree,T, Tmax, Tbranch),
+	compute_current_depth(Tree, [Node, Leaf], CurrentDepth, Branch),
+	Max=Tmax.
+
+compute_current_depth(Tree, [Node, Leaf|[]], ResultQuantity, [[Node, Leaf|[]]|Tbranch]):-
+	find_parent(Node, Parent),
+	compute_current_depth(Tree, [Parent, Node|[]], TResultQuantity, Tbranch),
+	ResultQuantity = TResultQuantity +1,!.
+compute_current_depth(Tree, [Node, Leaf|[]], 1,[[Node, Leaf|[]]]).
+
+
+find_parent(Leaf, Result):-
+	 findall(Parent, edge(Parent, Leaf), List),
+	 get_string_from_result(List, Result).
+%%%%helpful
+get_string_from_result([H|_],H).
+
+max(A, B, A) :-
+     A > B,
+     !.
+max(_, B, B).
+
+goal
+program(Quantity, Branch).

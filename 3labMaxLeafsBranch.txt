@@ -1,0 +1,139 @@
+include "lab1.inc"
+
+domains
+intlist = integer*.
+strlist=string*.
+strlistlist = strlist*.
+
+predicates
+nondeterm append(strlist, strlist, strlist).
+nondeterm edge(string, string).
+nondeterm del_double(strlist,strlistlist).
+nondeterm form_edge(strlist, strlist, strlistlist).
+nondeterm form_graph(strlistlist, strlistlist).
+nondeterm ost_tree(strlistlist).
+nondeterm member(string, strlist).
+nondeterm member_both(string, string, strlistlist).
+nondeterm member_list(string, strlistlist, strlist).
+nondeterm form_tree(strlistlist, strlistlist, strlistlist , strlistlist).
+nondeterm delete(strlist, strlistlist, strlistlist).
+nondeterm lists_equal(strlist, strlist).
+nondeterm program(integer, strlist).
+nondeterm len(strlist, integer).
+%my
+nondeterm get_string_from_result(strlist, string).
+nondeterm max(integer, integer, integer).
+nondeterm cut_first(strlistlist, strlistlist).
+nondeterm find_root(string).
+nondeterm find_first_nodes(strlist).
+nondeterm find_childs(string, strlist).
+nondeterm first_childs_traversal(strlist, integer, strlist).
+nondeterm childs_traversal(strlist, integer, strlist).
+nondeterm add_root(strlist, strlist).
+clauses
+edge(a, b).
+edge(b,t).
+edge(t,y).
+edge(y,n).
+edge(b,q).
+edge(q,v).
+edge(a, c).
+edge(a, d).
+edge(d, e).
+edge(d, k).
+edge(d, m).
+edge(m, i).
+edge(d, p).
+%%% form a tree
+ost_tree(T):-form_graph(V, A), form_tree(V, A, [], T).
+append([], L, L).
+append([X|T], Y, [X|ResultTail]) :- append(T, Y, ResultTail).
+
+del_double([X|T], Y):- member(X,T), !, del_double(T, Y).
+del_double([X|T], [[X]|Y]):- !, del_double(T, Y).
+del_double([],[]).
+
+delete(_, [], []).
+delete(L, [H|T], VT) :-
+	lists_equal(L, H), 
+	delete(L, T, VT),!.
+delete(L, [H|T], [H|VT]):-
+	delete(L, T, VT).
+
+lists_equal([], []).
+lists_equal([X|Xs], [X|Ys]) :- 
+    lists_equal(Xs, Ys).
+
+
+member(X, [_|T]):-member(X, T).
+member(X, [X|_]).
+
+member_list(X, [_|T], L):- member_list(X, T, L).
+member_list(X, [L|_], L):- member(X, L), !.
+
+member_both(X, Y, [L|_]):- member(X, L), member(Y, L),!.
+member_both(X, Y, [_|T]):- member_both(X, Y, T).
+
+form_edge([],[],[]).
+form_edge([X|XT], [Y|YT], [[X,Y]|L]):- form_edge(XT, YT, L).
+
+form_graph(V, A):- findall(X, edge(X,_), L1), findall(Y, edge(_,Y), L2), append(L1, L2, L), del_double(L, V), form_edge(L1, L2, A).
+
+form_tree (_, [ ], T, T).
+form_tree (V, [ [X, Y] | AT], TO, T) :-
+			 member_both (X, Y, V), !, form_tree (V, AT, TO, T).
+form_tree (V, [ [X, Y] | AT], TO, T) :-
+		               member_list (X, V, L1), member_list (Y, V, L2),
+		               append (L1, L2, L),
+		               delete (L1, V, V1),
+		               delete (L2, V1, V2),
+		               form_tree ([L | V2], AT, [ [X, Y] | TO], T).
+		               
+len([], 0).
+len([H|T], Result):-len(T, ResultS), Result=ResultS+1.
+
+program(Quantity, ResultBranch):-find_root(Root), find_first_nodes(Nodes),first_childs_traversal(Nodes, Quantity, Branch), add_root(Branch, ResultBranch),!.%traversal_tree(T, T, Quantity, Branch).
+%%%%%%%%%%%%find a number of longest tree
+first_childs_traversal([], 0, []). 
+first_childs_traversal([CurrentNode|Tail_First_Childs], ResultQuantity, [CurrentNode|DeepResultBranch]):- 
+	first_childs_traversal(Tail_First_Childs, TailQuantity, TailResultBranch),
+	find_childs(CurrentNode, Childs),
+	childs_traversal(Childs, DeepQuantity, DeepResultBranch),
+	DeepQuantity>TailQuantity,
+	ResultQuantity=DeepQuantity,!.
+first_childs_traversal([CurrentNode|Tail_First_Childs], Quantity, ResultBranch):- 
+	first_childs_traversal(Tail_First_Childs, Quantity, ResultBranch),
+	find_childs(CurrentNode, Childs),
+	childs_traversal(Childs, DeepQuantity, DeepResultBranch).
+
+childs_traversal([], 0, []). 
+childs_traversal([CurrentNode|Tail_First_Childs], ResultQuantity, [CurrentNode|TailResultBranch]):-
+	childs_traversal(Tail_First_Childs,TailQuantity, TailResultBranch),
+	find_childs(CurrentNode, Childs),
+	Childs = [],
+	ResultQuantity=TailQuantity+1,!.
+childs_traversal([CurrentNode|Tail_First_Childs], ResultQuantity, [CurrentNode|ResultBranch]):-
+	childs_traversal(Tail_First_Childs,TailQuantity, TailResultBranch),
+	find_childs(CurrentNode, Childs),	
+	childs_traversal(Childs, DeepQuantity, DeepResultBranch),
+	ResultQuantity = TailQuantity + DeepQuantity,
+	append(TailResultBranch, DeepResultBranch, ResultBranch).
+	
+%%%
+find_childs(Node, Childs):- findall(Child, edge(Node, Child), Childs).
+find_root(X):-edge(X, _), not(edge(_, X)).
+find_first_nodes(Nodes):- find_root(Root), findall(Node, edge(Root, Node), Nodes),!.
+%%%%helpful
+get_string_from_result([H|_],H).
+
+max(A, B, A) :-
+     A > B,
+     !.
+max(_, B, B).
+
+cut_first([_|ResultList], ResultList).
+
+add_root(Branch, [Root|Branch]):-find_root(Root).
+
+goal
+program(Quantity, Branch).

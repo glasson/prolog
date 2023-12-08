@@ -1,0 +1,82 @@
+domains
+intlist=integer*.
+strlist=string*.
+strlistlist=strlist*
+
+facts
+fly(string, string, string, integer).
+
+predicates
+nondeterm append(strlist,strlist,strlist).
+nondeterm appendlists(strlistlist,strlistlist,strlistlist).
+%nondeterm add_root(strlist, strlist).
+nondeterm find_path(string, string, strlistlist).
+nondeterm find_path_neighbours(string, string, strlist, strlist, strlistlist).
+nondeterm find_neighbours(string, strlist).
+nondeterm del_visited_from_neighbours(strlist, strlist, strlist).
+nondeterm member(string, strlist).
+nondeterm convert_paths_to_reises(strlistlist, strlistlist).
+nondeterm convert_list_to_reises(strlist, strlist).
+nondeterm reverse(strlist,strlist).
+
+clauses
+%%%%%%%%%%%%find a number of longest tree
+find_path(Start, End, Result):-
+	find_neighbours(Start, Neighbours),
+	find_path_neighbours(Start, End, Neighbours, [Start],NeighboursPaths),
+	write("Paths: ", NeighboursPaths, "\n"),
+	convert_paths_to_reises(NeighboursPaths, Result).
+	
+
+find_path_neighbours(Parent, End, [CurrentNode|OtherNodes], HistoryPath, [[Reis|HistoryPath]|Tail]):-	
+	find_path_neighbours(Parent, End, OtherNodes, HistoryPath, Tail),
+		CurrentNode=End,
+		%fly(Reis, Parent, CurrentNode, _).
+		Reis=CurrentNode,!.
+find_path_neighbours(Parent, End, [CurrentNode|OtherNodes], HistoryPath, Tail ):-	%NewNeighbours?
+	find_path_neighbours(Parent, End, OtherNodes, HistoryPath, Tail),
+		find_neighbours(CurrentNode, Neighbours),
+	  	del_visited_from_neighbours(Neighbours,HistoryPath, NewNeighbours),
+	  	NewNeighbours=[],!. %fail?
+find_path_neighbours(Parent, End, [CurrentNode|OtherNodes], HistoryPath, Result ):-%ResultReisesList MUST BE STATIClC
+	find_path_neighbours(Parent, End, OtherNodes, HistoryPath, TailResultReisesList ),%width bypassing
+		find_neighbours(CurrentNode, Neighbours),
+		del_visited_from_neighbours(Neighbours, HistoryPath, NewNeighbours),
+		find_path_neighbours(CurrentNode, End, NewNeighbours, [CurrentNode|HistoryPath], DeepResult),
+		appendlists(DeepResult, TailResultReisesList, Result).
+		%add curNode to from DeepResult to UpdatedDeepResult
+find_path_neighbours(_, _, [], _, []).	
+	  	%NECESSARILY check is this reis in (DeepTailResultPaths) BECAUSE del_parent do not help with CYCLES in DeepTailResultPaths yet?
+	  	%change Check on Del_parent? 
+	
+%%%helpful
+find_neighbours(Node, Neighbours):- findall(Child, fly(_, Node, Child,_), Childs), findall(Parent, fly(_, Parent, Node,_), Parents), append(Childs, Parents, Neighbours).
+
+append([], L, L).
+append([X|T], Y, [X|ResultTail]) :- append(T, Y, ResultTail).
+
+appendlists([], L2, L2).
+appendlists([H1 | T1], L2, [H1 | RestResult]) :- appendlists(T1, L2, RestResult).
+
+%add_root(Branch, [Root|Branch]):-find_root(Root).
+
+del_visited_from_neighbours([], _, []).
+del_visited_from_neighbours([H|T], History, TailResult):- del_visited_from_neighbours(T, History, TailResult), member(H, History),!.
+del_visited_from_neighbours([H|T], History, [H|TailResult]):-del_visited_from_neighbours(T, History, TailResult).
+
+member(X, [_|T]):-member(X, T).
+member(X, [X|_]).
+
+convert_paths_to_reises([HPath|OtherPaths], [Result|Tail]):- convert_paths_to_reises(OtherPaths, Tail),convert_list_to_reises(HPath, Reises),reverse(Reises, Result).
+convert_paths_to_reises([],[]).
+
+convert_list_to_reises([B, A|OtherPoints], [Reis|Tail]):- 
+	convert_list_to_reises([A|OtherPoints], Tail),fly(Reis,A,B,_).
+convert_list_to_reises([B, A|OtherPoints], [Reis|Tail]):- 
+	convert_list_to_reises([A|OtherPoints], Tail), fly(Reis,B,A,_).
+convert_list_to_reises([A], []).
+
+reverse([],[]).
+reverse([H|T], Reversed) :- reverse(T, RestReversed), append(RestReversed, [H], Reversed).
+goal
+consult("fly_facts.txt"), find_path(a, j, Reises).
